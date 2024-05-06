@@ -43,7 +43,7 @@ export default function DataView() {
         [id],
         () => {
           console.log("Dado excluído com sucesso!");
-          // Após a exclusão, recuperar novamente os dados atualizados do banco de dados
+          //Recuperar novamente os dados atualizados do banco de dados
           fetchDataFromDB();
         },
         (_, error) => {
