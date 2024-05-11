@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StatusBar,
   StyleSheet,
@@ -6,13 +6,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Button,
   ScrollView,
 } from "react-native";
-import * as SQLite from "expo-sqlite";
+import { openDatabaseAsync } from "expo-sqlite";
 import { useNavigation } from "@react-navigation/native";
-
-const db = SQLite.openDatabase("database.db");
 
 export default function FormView() {
   const [nome, setNome] = useState("");
@@ -24,54 +21,56 @@ export default function FormView() {
   const [errorVisible, setErrorVisible] = useState(false);
   const navigation = useNavigation();
 
-  const handleSubmit = () => {
-    db.transaction((tx) => {
-      tx.executeSql(
-        "CREATE TABLE IF NOT EXISTS dados (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, sobrenome TEXT, email TEXT, idade TEXT, endereco TEXT)"
-      );
-      tx.executeSql(
+  useEffect(() => {
+    const initializeDatabase = async () => {
+      try {
+        const db = await openDatabaseAsync("database.db");
+        await db.execAsync(`
+          PRAGMA journal_mode = WAL;
+          CREATE TABLE IF NOT EXISTS dados (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT,
+            sobrenome TEXT,
+            email TEXT,
+            idade TEXT,
+            endereco TEXT
+          );
+        `);
+      } catch (error) {
+        console.error("Erro ao inicializar o banco de dados:", error);
+      }
+    };
+
+    initializeDatabase();
+  }, []);
+
+  const handleSubmit = async () => {
+    try {
+      const db = await openDatabaseAsync("database.db");
+      await db.runAsync(
         "INSERT INTO dados (nome, sobrenome, email, idade, endereco) VALUES (?, ?, ?, ?, ?)",
-        [nome, sobrenome, email, idade, endereco],
-        (_, { rowsAffected }) => {
-          if (rowsAffected > 0) {
-            console.log("Dados inseridos com sucesso!");
-            // Limpar os campos após o envio do formulário
-            setNome("");
-            setSobrenome("");
-            setEmail("");
-            setIdade("");
-            setEndereco("");
-            // Mostrar a mensagem de sucesso
-            setSuccessVisible(true);
-
-            setTimeout(() => {
-              setSuccessVisible(false);
-            }, 4000);
-          } else {
-            console.error("Erro ao inserir os dados.");
-
-            setErrorVisible(true);
-
-            setTimeout(() => {
-              setErrorVisible(false);
-            }, 4000);
-          }
-        },
-        (_, error) => {
-          console.error("Erro ao inserir os dados:", error);
-
-          setErrorVisible(true);
-
-          setTimeout(() => {
-            setErrorVisible(false);
-          }, 4000);
-        }
+        [nome, sobrenome, email, idade, endereco]
       );
-    });
-  };
 
-  const handleNavigateToDataView = () => {
-    navigation.navigate("Data"); // Navegação para o DataView
+      console.log("Dados inseridos com sucesso!");
+      // Limpar os campos após o envio do formulário
+      setNome("");
+      setSobrenome("");
+      setEmail("");
+      setIdade("");
+      setEndereco("");
+      // Mostrar a mensagem de sucesso
+      setSuccessVisible(true);
+      setTimeout(() => {
+        setSuccessVisible(false);
+      }, 4000);
+    } catch (error) {
+      console.error("Erro ao inserir os dados:", error);
+      setErrorVisible(true);
+      setTimeout(() => {
+        setErrorVisible(false);
+      }, 4000);
+    }
   };
 
   return (
@@ -114,8 +113,8 @@ export default function FormView() {
             <Text style={styles.buttonText}>Enviar</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.button}
-            onPress={handleNavigateToDataView}
+            style={[styles.button, { backgroundColor: "blue" }]}
+            onPress={() => navigation.navigate("Visualização de Dados")}
           >
             <Text style={styles.buttonText}>Dados dos Pais</Text>
           </TouchableOpacity>
@@ -139,16 +138,8 @@ export default function FormView() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    // padding: 20,
-  },
-  container1: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 20,
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+  container1: { flex: 1, backgroundColor: "#fff", padding: 20 },
   navbar: {
     backgroundColor: "purple",
     paddingVertical: 10,
@@ -157,20 +148,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  navbarTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
+  navbarTitle: { fontSize: 20, fontWeight: "bold" },
   title: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
   },
-  label: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
+  label: { fontSize: 16, marginBottom: 5 },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -187,10 +172,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 10,
   },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-  },
+  buttonText: { color: "#fff", fontSize: 16 },
   successMessage: {
     backgroundColor: "green",
     padding: 10,
@@ -205,8 +187,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
     alignItems: "center",
   },
-  messageText: {
-    color: "#fff",
-    textAlign: "center",
-  },
+  messageText: { color: "#fff", textAlign: "center" },
 });

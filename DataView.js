@@ -8,31 +8,21 @@ import {
 } from "react-native";
 import * as SQLite from "expo-sqlite";
 
-const db = SQLite.openDatabase("database.db");
-
 export default function DataView() {
-  const [data, setData] = useState(null); // Estado para armazenar os dados do banco de dados
+  const [data, setData] = useState([]);
 
   useEffect(() => {
-    // Recuperar dados do banco de dados ao montar o componente
     fetchDataFromDB();
   }, []);
 
-  // Função para recuperar os dados do banco de dados
-  const fetchDataFromDB = () => {
-    db.transaction((tx) => {
-      tx.executeSql(
-        "SELECT * FROM dados",
-        [],
-        (_, { rows }) => {
-          // Atualizar o estado com os dados recuperados do banco de dados
-          setData(rows._array);
-        },
-        (_, error) => {
-          console.error("Erro ao recuperar os dados do banco de dados:", error);
-        }
-      );
-    });
+  const fetchDataFromDB = async () => {
+    const db = await SQLite.openDatabaseAsync("database.db");
+    try {
+      const result = await db.getAllAsync("SELECT * FROM dados");
+      setData(result);
+    } catch (error) {
+      console.error("Erro ao recuperar os dados do banco de dados:", error);
+    }
   };
 
   // Função para excluir um item de dados com o ID fornecido
@@ -43,7 +33,7 @@ export default function DataView() {
         [id],
         () => {
           console.log("Dado excluído com sucesso!");
-          //Recuperar novamente os dados atualizados do banco de dados
+          // Após a exclusão, recuperar novamente os dados atualizados do banco de dados
           fetchDataFromDB();
         },
         (_, error) => {
@@ -57,7 +47,7 @@ export default function DataView() {
     <ScrollView contentContainerStyle={styles.scrollViewContent}>
       <View style={styles.container}>
         <Text style={styles.title}>Dados Inseridos</Text>
-        {data && data.length > 0 ? (
+        {data.length > 0 ? (
           <View style={styles.dataContainer}>
             {data.map((item) => (
               <View key={item.id} style={styles.dataItem}>
